@@ -11,6 +11,7 @@ from load_data import load_batch_data
 from nets.models import resnet_model_deconv
 import config as cfg
 import nets.model_config as mcfg
+import self_define_loss
 
 
 def cal_acc(output, gtMaps, batchSize):
@@ -18,7 +19,7 @@ def cal_acc(output, gtMaps, batchSize):
     def _argmax(tensor):
         resh = tf.reshape(tensor, [-1])
         argmax = tf.argmax(resh, 0)
-        return (argmax // tensor.get_shape().as_list()[0], argmax % tensor.get_shape().as_list()[0])
+        return argmax // tensor.get_shape().as_list()[0], argmax % tensor.get_shape().as_list()[0]
 
     def _compute_err( u, v):
         u_x, u_y = _argmax(u)
@@ -73,8 +74,12 @@ def train(path_save_model, path_save_log_train, path_save_log_val):
     print('--inference done--')
 
     with tf.name_scope('loss'):
-        diff1 = tf.subtract(logits1, labels)
-        train_loss = tf.reduce_mean(tf.nn.l2_loss(diff1, name='l2loss'))
+        if not cfg.LOSS_SELF:
+            diff1 = tf.subtract(logits1, labels)
+            train_loss = tf.reduce_mean(tf.nn.l2_loss(diff1, name='l2loss'))
+        else:
+            train_loss = self_define_loss.loss_smooth_l1(logits1, labels)
+
     print('--loss done--')
 
     # with tf.name_scope('accuracy'):
@@ -227,11 +232,10 @@ def update_config(args):
         cfg.EPOCH_SIZE = args.epoch_size
     if args.stack_times:
         mcfg.TIMES_STACK = args.stack_times
-    try:
+    if args.save_path:
         cfg.SAVE_ROOT_PATH = args.save_path
-    except Exception as info:
-        print('save path is must',info)
-        exit()
+    else:
+        print('\033[32;0m  warning: not assign output dir \033[0m')
 
     print('Train model with params:\n',
           '--stack_times : %d\n' % mcfg.TIMES_STACK,
