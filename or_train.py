@@ -4,7 +4,6 @@ import sys
 import numpy as np
 import argparse
 import os
-# import matplotlib.pyplot as plt
 
 import processing
 import gene_hm
